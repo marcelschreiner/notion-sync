@@ -204,6 +204,10 @@ function syncDatabaseToCalendar(dbId, titleCol, dateCol, emoji, relationCol = nu
           try {
             console.log(`📅 Erstelle Event: ${combinedTitle}`);
             const newEvent = calendar.createAllDayEvent(combinedTitle, eventDate, { description: notionUrl });
+            
+            // NEU: Termin sofort auf "Verfügbar" setzen
+            newEvent.setTransparency(CalendarApp.Transparency.TRANSPARENT);
+            
             updateNotionGoogleId(page.id, newEvent.getId());
           } catch (e) {
             console.error(`Fehler beim Erstellen von Event "${combinedTitle}": ${e}`);
@@ -213,16 +217,24 @@ function syncDatabaseToCalendar(dbId, titleCol, dateCol, emoji, relationCol = nu
           const oldDateStr = toDateString(event.getAllDayStartDate());
           const newDateStr = toDateString(eventDate);
 
+          // NEU: Prüfen, ob der Termin aktuell als "Belegt" (Busy/Opaque) markiert ist
+          const isBusy = event.getTransparency() === CalendarApp.Transparency.OPAQUE;
+
           const needsUpdate =
             event.getTitle() !== combinedTitle ||
             oldDateStr !== newDateStr ||
-            event.getDescription().trim() !== notionUrl;
+            event.getDescription().trim() !== notionUrl ||
+            isBusy; // NEU: Update erzwingen, wenn er auf Busy steht
 
           if (needsUpdate) {
             try {
               event.setTitle(combinedTitle);
               event.setAllDayDate(eventDate);
               event.setDescription(notionUrl);
+              
+              // NEU: Termin bei Update wieder auf "Verfügbar" setzen
+              event.setTransparency(CalendarApp.Transparency.TRANSPARENT);
+              
               console.log(`🔄 Update: ${combinedTitle}`);
             } catch (e) {
               console.error(`Fehler beim Aktualisieren von Event "${combinedTitle}": ${e}`);
